@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Remoção de Fundo com @imgly/background-removal</title>
+  <style>
+    body {
+      background: #222;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    canvas, img {
+      margin: 20px;
+      border-radius: 12px;
+      max-width: 90%;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <h1>Remoção de Fundo com @imgly/background-removal</h1>
+
+  <input type="file" id="fileInput" accept="image/*">
+  <br><br>
+  <button id="processBtn" disabled>Remover Fundo</button>
+
+  <div>
+    <img id="preview" style="display:none;" />
+    <canvas id="outputCanvas"></canvas>
+  </div>
+
+  <!-- CDN do @imgly/background-removal -->
+  <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal"></script>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const preview = document.getElementById("preview");
+    const canvas = document.getElementById("outputCanvas");
+    const ctx = canvas.getContext("2d");
+    const processBtn = document.getElementById("processBtn");
+
+    // Quando o usuário escolhe uma imagem
+    fileInput.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+          processBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Quando clica no botão
+    processBtn.addEventListener("click", async () => {
+      if (!preview.src) return;
+
+      // Cria imagem temporária para o processamento
+      const image = document.createElement("img");
+      image.src = preview.src;
+      await new Promise(res => image.onload = res);
+
+      // Remove o fundo
+      const blob = await imglyRemoveBackground(image);
+      const url = URL.createObjectURL(blob);
+
+      // Exibe a imagem sem fundo
+      const outputImage = document.createElement("img");
+      outputImage.src = url;
+      document.body.appendChild(outputImage);
+    });
+  </script>
+</body>
+</html>
