@@ -124,7 +124,6 @@
     </main>
 
     <script>
-        // 2. LÓGICA JAVASCRIPT PARA CONTROLAR A PÁGINA
         const imageInput = document.getElementById('imageInput');
         const removeBgBtn = document.getElementById('removeBgBtn');
         const loadingIndicator = document.getElementById('loading-indicator');
@@ -133,16 +132,13 @@
 
         let currentFile = null;
 
-        // Evento para quando o usuário escolhe um arquivo
         imageInput.addEventListener('change', (event) => {
             currentFile = event.target.files[0];
             
-            // Limpa os resultados anteriores
             originalContainer.innerHTML = '';
             resultContainer.innerHTML = '';
 
             if (currentFile) {
-                // Cria uma URL temporária para mostrar a imagem original
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = document.createElement('img');
@@ -150,32 +146,25 @@
                     originalContainer.appendChild(img);
                 };
                 reader.readAsDataURL(currentFile);
-
-                // Habilita o botão de remover fundo
                 removeBgBtn.disabled = false;
             } else {
-                // Se nenhum arquivo for selecionado, desabilita o botão
                 removeBgBtn.disabled = true;
             }
         });
 
-        // Evento para o clique no botão de remover fundo
         removeBgBtn.addEventListener('click', async () => {
             if (!currentFile) {
                 alert('Por favor, escolha uma imagem primeiro.');
                 return;
             }
 
-            // Mostra o indicador de carregamento e limpa o resultado anterior
             loadingIndicator.style.display = 'block';
             resultContainer.innerHTML = '';
 
             try {
-                // 3. CHAMADA DA FUNÇÃO DA BIBLIOTECA
-                // O objeto 'ImglyRemoveBackground' foi criado pelo script no <head>
+                // Esta chamada agora funcionará, pois o script foi carregado corretamente
                 const imageBlob = await ImglyRemoveBackground.removeBackground(currentFile);
 
-                // Cria uma URL temporária para o resultado (que é um 'blob')
                 const resultUrl = URL.createObjectURL(imageBlob);
                 const img = document.createElement('img');
                 img.src = resultUrl;
@@ -185,7 +174,6 @@
                 console.error('Falha ao remover o fundo:', error);
                 alert('Ocorreu um erro ao processar a imagem. Veja o console para detalhes.');
             } finally {
-                // Esconde o indicador de carregamento ao final do processo
                 loadingIndicator.style.display = 'none';
             }
         });
