@@ -76,7 +76,7 @@
       await new Promise(res => image.onload = res);
 
       // Remove o fundo
-      const blob = await imglyRemoveBackground(image);
+      const blob = await ImglyRemoveBackground.removeBackground(image);
       const url = URL.createObjectURL(blob);
 
       // Exibe a imagem sem fundo
