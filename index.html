@@ -56,7 +56,6 @@
     const ctx = canvas.getContext("2d");
     const processBtn = document.getElementById("processBtn");
 
-    // Quando o usuário escolhe uma imagem
     fileInput.addEventListener("change", (event) => {
       const file = event.target.files[0];
       if (file) {
@@ -64,7 +63,6 @@
         reader.onload = (e) => {
           preview.src = e.target.result;
           preview.style.display = "block";
-          // Limpa o canvas anterior
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           processBtn.disabled = false;
         };
@@ -72,7 +70,6 @@
       }
     });
 
-    // Quando clica no botão
     processBtn.addEventListener("click", async () => {
       if (!preview.src) return;
 
@@ -80,30 +77,26 @@
       processBtn.textContent = "Processando...";
 
       try {
-        // CORREÇÃO: Usa a função correta ImglyRemoveBackground.removeBackground
-        const blob = await ImglyRemoveBackground.removeBackground(preview.src);
+        // CORREÇÃO: Adicionando o objeto de configuração com `publicPath`
+        const config = {
+          publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/' // Caminho para os modelos
+        };
+        const blob = await ImglyRemoveBackground.removeBackground(preview.src, config);
 
-        // Cria uma URL para o blob resultante
         const url = URL.createObjectURL(blob);
-
-        // Carrega a imagem sem fundo para desenhar no canvas
         const outputImage = new Image();
         outputImage.onload = () => {
-          // Ajusta o tamanho do canvas para o tamanho da imagem
           canvas.width = outputImage.width;
           canvas.height = outputImage.height;
-          // Desenha a imagem no canvas
           ctx.drawImage(outputImage, 0, 0);
-          // Limpa a URL do objeto para liberar memória
           URL.revokeObjectURL(url);
-          // Oculta a imagem de pré-visualização para mostrar apenas o canvas
           preview.style.display = 'none';
         };
         outputImage.src = url;
 
       } catch (error) {
         console.error("Falha ao remover o fundo:", error);
-        alert("Ocorreu um erro ao processar a imagem.");
+        alert("Ocorreu um erro ao processar a imagem. Verifique o console para mais detalhes.");
       } finally {
         processBtn.disabled = false;
         processBtn.textContent = "Remover Fundo";
