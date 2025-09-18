@@ -1,104 +1,152 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Remoção de Fundo com @imgly/background-removal</title>
+  <meta charset="utf-8" />
+  <title>Teste IMG.LY Background Removal (robusto)</title>
   <style>
-    body {
-      background: #222;
-      color: white;
-      font-family: sans-serif;
-      text-align: center;
-      padding: 20px;
-    }
-    canvas, img {
-      margin: 20px;
-      border-radius: 12px;
-      max-width: 90%;
-      border: 1px dashed #555;
-    }
-    button {
-      background: #4CAF50;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background: #45a049;
-    }
-    button:disabled {
-        background: #555;
-        cursor: not-allowed;
-    }
+    body { background:#111; color:#eee; font-family:system-ui,Segoe UI,Roboto,Arial; text-align:center; padding:24px; }
+    input, button { margin:8px; }
+    img, canvas { max-width:90%; border-radius:8px; border:1px dashed #444; display:block; margin:12px auto; }
+    #log { color:#ccc; font-size:13px; white-space:pre-wrap; text-align:left; max-width:900px; margin:12px auto; }
   </style>
 </head>
 <body>
-  <h1>Remoção de Fundo com @imgly/background-removal</h1>
+  <h2>Remoção de Fundo — IMG.LY (versão resiliente)</h2>
 
-  <input type="file" id="fileInput" accept="image/*">
-  <br><br>
+  <input id="fileInput" type="file" accept="image/*" />
+  <br/>
   <button id="processBtn" disabled>Remover Fundo</button>
 
-  <div>
-    <img id="preview" style="display:none;" />
-    <canvas id="outputCanvas"></canvas>
-  </div>
+  <img id="preview" style="display:none" alt="preview"/>
+  <canvas id="outputCanvas"></canvas>
 
-  <!-- Script da versão browser -->
-  <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/browser.js"></script>
+  <div id="log"></div>
 
-  <script>
+  <script type="module">
+    // Versão que vamos tentar usar (mude se quiser outra)
+    const PKG_VERSION = "1.7.0";
+    const BASE = `https://cdn.jsdelivr.net/npm/@imgly/background-removal@${PKG_VERSION}/dist/`;
+    const MODULE_URL = BASE + "index.mjs";
+
     const fileInput = document.getElementById("fileInput");
     const preview = document.getElementById("preview");
     const canvas = document.getElementById("outputCanvas");
     const ctx = canvas.getContext("2d");
     const processBtn = document.getElementById("processBtn");
+    const logEl = document.getElementById("log");
 
-    fileInput.addEventListener("change", (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          preview.src = e.target.result;
-          preview.style.display = "block";
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          processBtn.disabled = false;
-        };
-        reader.readAsDataURL(file);
-      }
+    function log(...args) {
+      console.log(...args);
+      logEl.textContent += args.map(a => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' ') + '\n';
+    }
+
+    // Leitura do arquivo local
+    fileInput.addEventListener("change", (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = (ev) => {
+        preview.src = ev.target.result;
+        preview.style.display = 'block';
+        processBtn.disabled = false;
+        canvas.width = 0; canvas.height = 0; // limpa canvas
+      };
+      r.readAsDataURL(f);
     });
 
-    processBtn.addEventListener("click", async () => {
-      if (!preview.src) return;
+    // Carrega dinamicamente o módulo ESM do CDN e tenta descobrir a função removeBackground
+    let removeBackgroundFn = null;
+    async function loadModuleAndFindFn() {
+      try {
+        log(`Importando módulo ESM de: ${MODULE_URL}`);
+        const mod = await import(MODULE_URL);
+        // Loga as chaves exportadas pra debug
+        log("Export keys:", Object.keys(mod));
+        // possíveis lugares onde a função pode estar:
+        removeBackgroundFn =
+          mod.removeBackground ||
+          mod.default?.removeBackground ||
+          mod.backgroundRemoval?.removeBackground ||
+          mod.default?.backgroundRemoval?.removeBackground ||
+          // por segurança, também verificar se o próprio módulo default é a função
+          (typeof mod.default === "function" ? mod.default : null);
 
+        // também verifica se o script UMD pôs algo no window
+        if (!removeBackgroundFn) {
+          removeBackgroundFn = window.removeBackground || window.backgroundRemoval?.removeBackground || null;
+        }
+
+        if (removeBackgroundFn) {
+          log("Função de remoção encontrada ✅");
+        } else {
+          log("Função de remoção NÃO encontrada no módulo importado nem no global window ❌");
+        }
+      } catch (err) {
+        log("Falha ao importar módulo ESM:", err);
+        // fallback: tentar carregar a build UMD/browser (se existir)
+        try {
+          const umdUrl = BASE + "browser.js"; // tentativa comum
+          log("Tentando carregar fallback UMD:", umdUrl);
+          await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = umdUrl;
+            s.onload = () => resolve();
+            s.onerror = (ev) => reject(new Error('Erro ao carregar UMD ' + umdUrl));
+            document.head.appendChild(s);
+          });
+          // depois de carregar, procura no global
+          removeBackgroundFn = window.removeBackground || window.backgroundRemoval?.removeBackground || null;
+          log("Após fallback UMD, removeBackgroundFn:", Boolean(removeBackgroundFn));
+        } catch (err2) {
+          log("Fallback UMD falhou:", err2);
+        }
+      }
+    }
+
+    // carregamos o módulo assim que a página abrir (pra evitar latência ao clicar)
+    loadModuleAndFindFn();
+
+    processBtn.addEventListener("click", async () => {
+      if (!preview.src) return alert("Escolha uma imagem primeiro.");
       processBtn.disabled = true;
       processBtn.textContent = "Processando...";
 
       try {
+        // se a função ainda não foi descoberta, tenta recarregar o módulo
+        if (!removeBackgroundFn) {
+          log("removeBackgroundFn não encontrada; tentando importar de novo...");
+          await loadModuleAndFindFn();
+        }
+
+        if (!removeBackgroundFn) {
+          throw new Error("removeBackground não encontrada depois das tentativas. Verifique os logs (abaixo) e se o pacote/dist correto está disponível.");
+        }
+
+        // config: indica onde os assets (wasm/modelos) estão
         const config = {
-          publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/'
+          publicPath: BASE  // importante para que a lib busque os assets (resources.json, wasm, etc)
         };
 
-        // Função global correta exposta pelo script
-        const blob = await removeBackground(preview.src, config);
+        log("Chamando removeBackground (pode demorar)... (config.publicPath = " + config.publicPath + ")");
+        // a função aceita tanto URL base64 quanto elementos, dependendo da versão
+        // aqui passamos a dataURL (preview.src)
+        const blob = await removeBackgroundFn(preview.src, config);
 
+        // mostra o resultado no canvas
         const url = URL.createObjectURL(blob);
-        const outputImage = new Image();
-        outputImage.onload = () => {
-          canvas.width = outputImage.width;
-          canvas.height = outputImage.height;
-          ctx.drawImage(outputImage, 0, 0);
-          URL.revokeObjectURL(url);
-          preview.style.display = 'none';
-        };
-        outputImage.src = url;
-
-      } catch (error) {
-        console.error("Falha ao remover o fundo:", error);
-        alert("Ocorreu um erro ao processar a imagem. Veja o console para mais detalhes.");
+        const img = new Image();
+        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img, 0, 0);
+        // opcional: liberar URL
+        URL.revokeObjectURL(url);
+        preview.style.display = 'none';
+        log("Processamento concluído ✅");
+      } catch (err) {
+        log("Erro durante remoção:", err);
+        alert("Erro ao processar. Veja os logs abaixo (console também).");
       } finally {
         processBtn.disabled = false;
         processBtn.textContent = "Remover Fundo";
