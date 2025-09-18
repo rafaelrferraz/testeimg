@@ -47,6 +47,7 @@
     <canvas id="outputCanvas"></canvas>
   </div>
 
+  <!-- Script da versão browser -->
   <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/browser.js"></script>
 
   <script>
@@ -77,11 +78,12 @@
       processBtn.textContent = "Processando...";
 
       try {
-        // CORREÇÃO: Adicionando o objeto de configuração com `publicPath`
         const config = {
-          publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/' // Caminho para os modelos
+          publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/'
         };
-        const blob = await ImglyRemoveBackground.removeBackground(preview.src, config);
+
+        // Função global correta exposta pelo script
+        const blob = await removeBackground(preview.src, config);
 
         const url = URL.createObjectURL(blob);
         const outputImage = new Image();
@@ -96,7 +98,7 @@
 
       } catch (error) {
         console.error("Falha ao remover o fundo:", error);
-        alert("Ocorreu um erro ao processar a imagem. Verifique o console para mais detalhes.");
+        alert("Ocorreu um erro ao processar a imagem. Veja o console para mais detalhes.");
       } finally {
         processBtn.disabled = false;
         processBtn.textContent = "Remover Fundo";
