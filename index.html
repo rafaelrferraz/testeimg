@@ -1,199 +1,89 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teste de Remoção de Fundo</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        main {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 900px;
-            text-align: center;
-        }
-        h1 {
-            color: #1c1e21;
-            margin-bottom: 25px;
-        }
-        .controls {
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-        }
-        input[type="file"] {
-            border: 1px solid #ddd;
-            padding: 8px;
-            border-radius: 6px;
-        }
-        button {
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #fff;
-            background-color: #007bff;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-        button:hover:not(:disabled) {
-            background-color: #0056b3;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        #loading-indicator {
-            margin-top: 20px;
-            font-weight: bold;
-            color: #007bff;
-        }
-        .results-container {
-            display: flex;
-            justify-content: space-around;
-            gap: 20px;
-            margin-top: 20px;
-            flex-wrap: wrap;
-        }
-        .image-box {
-            width: 100%;
-            max-width: 400px;
-        }
-        .image-container {
-            border: 2px dashed #ddd;
-            border-radius: 8px;
-            width: 100%;
-            min-height: 300px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            background-color: #fafafa;
-        }
-        img {
-            max-width: 100%;
-            max-height: 400px;
-            display: block;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Remoção de Fundo com @imgly/background-removal</title>
+  <style>
+    body {
+      background: #222;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    canvas, img {
+      margin: 20px;
+      border-radius: 12px;
+      max-width: 90%;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+  </style>
 </head>
 <body>
+  <h1>Remoção de Fundo com @imgly/background-removal</h1>
 
-    <main>
-        <h1>Teste de Remoção de Fundo</h1>
-        
-        <div class="controls">
-            <input type="file" id="imageInput" accept="image/*">
-            <button id="removeBgBtn" disabled>Remover Fundo</button>
-        </div>
+  <input type="file" id="fileInput" accept="image/*">
+  <br><br>
+  <button id="processBtn" disabled>Remover Fundo</button>
 
-        <div id="loading-indicator" style="display: none;">
-            <p>Processando, por favor aguarde...</p>
-        </div>
+  <div>
+    <img id="preview" style="display:none;" />
+    <canvas id="outputCanvas"></canvas>
+  </div>
 
-        <div class="results-container">
-            <div class="image-box">
-                <h2>Original</h2>
-                <div id="original-container" class="image-container"></div>
-            </div>
-            <div class="image-box">
-                <h2>Resultado</h2>
-                <div id="result-container" class="image-container"></div>
-            </div>
-        </div>
-    </main>
+  <!-- CDN do @imgly/background-removal -->
+  <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/background-removal.browser.js"></script>
 
-    <script>
-        // Seleciona os elementos do DOM
-        const imageInput = document.getElementById('imageInput');
-        const removeBgBtn = document.getElementById('removeBgBtn');
-        const loadingIndicator = document.getElementById('loading-indicator');
-        const originalContainer = document.getElementById('original-container');
-        const resultContainer = document.getElementById('result-container');
-        let currentFile = null;
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const preview = document.getElementById("preview");
+    const canvas = document.getElementById("outputCanvas");
+    const ctx = canvas.getContext("2d");
+    const processBtn = document.getElementById("processBtn");
 
-        // Função que anexa os eventos e a lógica principal
-        // SÓ SERÁ CHAMADA DEPOIS QUE A BIBLIOTECA CARREGAR
-        function initializeApp() {
-            console.log('Biblioteca carregada com sucesso. App inicializado.');
-
-            // Evento para quando o usuário escolhe um arquivo
-            imageInput.addEventListener('change', (event) => {
-                currentFile = event.target.files[0];
-                originalContainer.innerHTML = '';
-                resultContainer.innerHTML = '';
-
-                if (currentFile) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        originalContainer.appendChild(img);
-                    };
-                    reader.readAsDataURL(currentFile);
-                    removeBgBtn.disabled = false;
-                } else {
-                    removeBgBtn.disabled = true;
-                }
-            });
-
-            // Evento para o clique no botão de remover fundo
-            removeBgBtn.addEventListener('click', async () => {
-                if (!currentFile) return;
-
-                loadingIndicator.style.display = 'block';
-                resultContainer.innerHTML = '';
-
-                try {
-                    // A chamada agora é segura, pois a biblioteca já carregou
-                    const imageBlob = await ImglyRemoveBackground.removeBackground(currentFile);
-                    const resultUrl = URL.createObjectURL(imageBlob);
-                    const img = document.createElement('img');
-                    img.src = resultUrl;
-                    resultContainer.appendChild(img);
-                } catch (error) {
-                    console.error('Falha ao remover o fundo:', error);
-                    alert('Ocorreu um erro ao processar a imagem. Veja o console para detalhes.');
-                } finally {
-                    loadingIndicator.style.display = 'none';
-                }
-            });
-        }
-
-        // --- LÓGICA DE CARREGAMENTO SEGURO ---
-        // 1. Cria um elemento <script> dinamicamente
-        const libraryScript = document.createElement('script');
-        libraryScript.src = 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/browser.js';
-
-        // 2. Define o que fazer QUANDO o script carregar com sucesso
-        libraryScript.onload = initializeApp;
-
-        // 3. Define o que fazer se o carregamento FALHAR
-        libraryScript.onerror = () => {
-            console.error('Falha crítica: Não foi possível carregar a biblioteca de remoção de fundo.');
-            alert('ERRO: Não foi possível carregar o recurso de remoção de fundo. Verifique a conexão com a internet.');
+    // Quando o usuário escolhe uma imagem
+    fileInput.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+          processBtn.disabled = false;
         };
+        reader.readAsDataURL(file);
+      }
+    });
 
-        // 4. Adiciona o script ao <head> para iniciar o download
-        document.head.appendChild(libraryScript);
-    </script>
+    // Quando clica no botão
+    processBtn.addEventListener("click", async () => {
+      if (!preview.src) return;
 
+      // Cria imagem temporária para o processamento
+      const image = document.createElement("img");
+      image.src = preview.src;
+      await new Promise(res => image.onload = res);
+
+      // Remove o fundo
+      const blob = await imglyRemoveBackground(image);
+      const url = URL.createObjectURL(blob);
+
+      // Exibe a imagem sem fundo
+      const outputImage = document.createElement("img");
+      outputImage.src = url;
+      document.body.appendChild(outputImage);
+    });
+  </script>
 </body>
 </html>
