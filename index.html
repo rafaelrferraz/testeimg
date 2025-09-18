@@ -15,6 +15,7 @@
       margin: 20px;
       border-radius: 12px;
       max-width: 90%;
+      border: 1px dashed #555;
     }
     button {
       background: #4CAF50;
@@ -27,6 +28,10 @@
     }
     button:hover {
       background: #45a049;
+    }
+    button:disabled {
+        background: #555;
+        cursor: not-allowed;
     }
   </style>
 </head>
@@ -42,8 +47,7 @@
     <canvas id="outputCanvas"></canvas>
   </div>
 
-  <!-- CDN do @imgly/background-removal -->
-  <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal/dist/browser.js"></script>
 
   <script>
     const fileInput = document.getElementById("fileInput");
@@ -60,6 +64,8 @@
         reader.onload = (e) => {
           preview.src = e.target.result;
           preview.style.display = "block";
+          // Limpa o canvas anterior
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
           processBtn.disabled = false;
         };
         reader.readAsDataURL(file);
@@ -70,19 +76,38 @@
     processBtn.addEventListener("click", async () => {
       if (!preview.src) return;
 
-      // Cria imagem temporária para o processamento
-      const image = document.createElement("img");
-      image.src = preview.src;
-      await new Promise(res => image.onload = res);
+      processBtn.disabled = true;
+      processBtn.textContent = "Processando...";
 
-      // Remove o fundo
-      const blob = await ImglyRemoveBackground.removeBackground(image);
-      const url = URL.createObjectURL(blob);
+      try {
+        // CORREÇÃO: Usa a função correta ImglyRemoveBackground.removeBackground
+        const blob = await ImglyRemoveBackground.removeBackground(preview.src);
 
-      // Exibe a imagem sem fundo
-      const outputImage = document.createElement("img");
-      outputImage.src = url;
-      document.body.appendChild(outputImage);
+        // Cria uma URL para o blob resultante
+        const url = URL.createObjectURL(blob);
+
+        // Carrega a imagem sem fundo para desenhar no canvas
+        const outputImage = new Image();
+        outputImage.onload = () => {
+          // Ajusta o tamanho do canvas para o tamanho da imagem
+          canvas.width = outputImage.width;
+          canvas.height = outputImage.height;
+          // Desenha a imagem no canvas
+          ctx.drawImage(outputImage, 0, 0);
+          // Limpa a URL do objeto para liberar memória
+          URL.revokeObjectURL(url);
+          // Oculta a imagem de pré-visualização para mostrar apenas o canvas
+          preview.style.display = 'none';
+        };
+        outputImage.src = url;
+
+      } catch (error) {
+        console.error("Falha ao remover o fundo:", error);
+        alert("Ocorreu um erro ao processar a imagem.");
+      } finally {
+        processBtn.disabled = false;
+        processBtn.textContent = "Remover Fundo";
+      }
     });
   </script>
 </body>
